@@ -20,10 +20,11 @@ import subprocess
 import time
 import os
 from datetime import datetime
+from collections import deque
 
 # Function to get the unclaimed balance
 def get_unclaimed_balance():
-    # Run the command
+    # Run the command to get the balance
     node_command = ['./node-1.4.21.1-linux-amd64', '-node-info']
     node_directory = os.path.expanduser('~/ceremonyclient/node')
     result = subprocess.run(node_command, cwd=node_directory, stdout=subprocess.PIPE)
@@ -32,67 +33,61 @@ def get_unclaimed_balance():
     # Extract the unclaimed balance from the output
     for line in output.split('\n'):
         if 'Unclaimed balance' in line:
-            balance = float(line.split()[2])
-            return balance
+            return float(line.split()[2])
+    return 0.0
 
 # Function to calculate average balance increase
-def calculate_average(deltas, period):
-    if not deltas:
-        return 0
-    total_delta = sum(deltas)
-    average_delta = total_delta / period
-    return average_delta
+def calculate_average(deltas):
+    return sum(deltas) / len(deltas) if deltas else 0
 
 # Initialize variables
-balances = []
-timestamps = []
-balance_deltas = []
+balances = deque(maxlen=8640)  # Store up to 24 hours of data (10s intervals)
+timestamps = deque(maxlen=8640)
+balance_deltas = deque(maxlen=8640)
 sample_interval = 10  # 10 seconds in seconds
-output_file = "balance_log.txt"
+output_file = os.path.expanduser("~/node_balance_morchize/balance_log.txt")
 
-# Main loop to collect data
+# Main loop to collect data and calculate averages instantly
 try:
-    with open(output_file, "a") as file:
-        counter = 0
+    with open(output_file, "a", buffering=1) as file:  # Open with line buffering
         while True:
             balance = get_unclaimed_balance()
             current_time = datetime.now()
             
             if balances:
-                previous_balance = balances[-1]
-                balance_delta = balance - previous_balance
+                # Calculate balance delta (difference from the last balance)
+                balance_delta = balance - balances[-1]
                 balance_deltas.append(balance_delta)
+            else:
+                balance_deltas.append(0)
             
+            # Add balance and timestamp to deque
             balances.append(balance)
             timestamps.append(current_time)
             
-            # Write current balance and timestamp to the file
+            # Write the current balance and timestamp to the log file
             file.write(f"{current_time}: {balance} QUIL\n")
             
-            # Calculate and write averages every 10 seconds
-            if counter % 90 == 0:  # Check minute average every 15 minutes (15 * 6 * 10s intervals)
-                if len(balance_deltas) >= 6:  # 1 minute of 10-second intervals
-                    average_per_minute = calculate_average(balance_deltas[-6:], 6)
-                    file.write(f"Average unclaimed balance increase per minute: {average_per_minute * 6:.12f} QUIL\n")
-                    file.flush()  # Ensure it's written immediately
+            # Calculate and write averages instantly based on available data
+            if len(balance_deltas) > 1:
+                # Calculate averages based on available deltas
+                minute_avg = calculate_average(list(balance_deltas)[-6:])  # Last minute (6 * 10-second intervals)
+                hour_avg = calculate_average(list(balance_deltas)[-360:])  # Last hour (360 * 10-second intervals)
+                day_avg = calculate_average(list(balance_deltas)[-8640:])  # Last day (8640 * 10-second intervals)
+            else:
+                minute_avg = hour_avg = day_avg = 0
+
+            # Write the averages to the log
+            file.write(f"Average unclaimed balance increase per minute: {minute_avg:.12f} QUIL\n")
+            file.write(f"Average unclaimed balance increase per hour: {hour_avg:.12f} QUIL\n")
+            file.write(f"Average unclaimed balance increase per day: {day_avg:.12f} QUIL\n")
             
-            if counter % 360 == 0:  # Check hourly and daily averages every hour (360 * 10s intervals)
-                if len(balance_deltas) >= 360:  # 1 hour of 10-second intervals
-                    average_per_hour = calculate_average(balance_deltas[-360:], 360)
-                    file.write(f"Average unclaimed balance increase per hour: {average_per_hour * 360:.12f} QUIL\n")
-                    file.flush()  # Ensure it's written immediately
-            
-                if len(balance_deltas) >= 8640:  # 24 hours of 10-second intervals
-                    average_per_day = calculate_average(balance_deltas[-8640:], 8640)
-                    file.write(f"Average unclaimed balance increase per day: {average_per_day * 8640:.12f} QUIL\n")
-                    file.flush()  # Ensure it's written immediately
-            
-            # Flush the file buffer to ensure data is written to the file
+            # Flush the file buffer to ensure data is written to the file immediately
             file.flush()
-            
+
             # Wait for the next sample interval
             time.sleep(sample_interval)
-            counter += 1
+
 except KeyboardInterrupt:
     with open(output_file, "a") as file:
         file.write("Script terminated by user.\n")
@@ -164,5 +159,5 @@ sudo systemctl start $SERVICE_NAME
 
 echo "Service $SERVICE_NAME has been set up and started."
 echo "Your balance and logs are located at $GET_BALANCE_SCRIPT_PATH."
-echo "To get your current and average QUIL(minute,hour,and daily), use the following command:"
-echo "cd ~/node_balance && ./get_balance.sh"
+echo "To get your current and average QUIL (minute, hour, and daily), use the following command:"
+echo "cd ~/node_balance_morchize && ./get_balance.sh"
