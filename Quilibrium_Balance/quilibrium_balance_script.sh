@@ -125,7 +125,7 @@ cat << 'EOF' > $GET_BALANCE_SCRIPT_PATH
 
 # Define variables
 USER_HOME=$(eval echo ~$USER)
-LOG_FILE="$USER_HOME/node_balance/balance_log.txt"
+LOG_FILE="$USER_HOME/node_balance_morchize/balance_log.txt"
 
 # Function to extract the latest value for a specific metric
 extract_latest_value() {
