@@ -8,7 +8,7 @@ While using it will say no data yet if not enough time has passed. It will get t
 
 ### To install the script:
 ```
-wget --no-cache -O - https://raw.githubusercontent.com/ohern24/quilibrium_scripts/main/Quilibrium_Balance/quilibrium_balance_script.sh | bash
+wget --no-cache -O - https://raw.githubusercontent.com/jonathanemorales/quilibrium_scripts/main/Quilibrium_Balance/quilibrium_balance_script.sh | bash
 ```
 
 ### To get balance, average per minute, average per hour, and average per day:
