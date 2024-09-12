@@ -2,9 +2,9 @@
 
 # Define variables
 USER_HOME=$(eval echo ~$USER)
-NODE_BALANCE_DIR="$USER_HOME/node_balance"
-SCRIPT_NAME="balance_by_cunnaredu.py"
-SERVICE_NAME="balance_script.service"
+NODE_BALANCE_DIR="$USER_HOME/node_balance_morchize"
+SCRIPT_NAME="balance_by_morchize.py"
+SERVICE_NAME="balance_script_chize.service"
 PYTHON_SCRIPT_PATH="$NODE_BALANCE_DIR/$SCRIPT_NAME"
 LOG_PATH="$NODE_BALANCE_DIR/balance_script.log"
 ERROR_LOG_PATH="$NODE_BALANCE_DIR/balance_script_error.log"
