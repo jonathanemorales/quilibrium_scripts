@@ -24,12 +24,11 @@ from collections import deque
 
 # Function to get the unclaimed balance
 def get_unclaimed_balance():
-    # Run the command to get the balance
     node_command = ['./node-1.4.21.1-linux-amd64', '-node-info']
     node_directory = os.path.expanduser('~/ceremonyclient/node')
     result = subprocess.run(node_command, cwd=node_directory, stdout=subprocess.PIPE)
     output = result.stdout.decode('utf-8')
-    
+
     # Extract the unclaimed balance from the output
     for line in output.split('\n'):
         if 'Unclaimed balance' in line:
@@ -37,12 +36,14 @@ def get_unclaimed_balance():
     return 0.0
 
 # Function to calculate average balance increase
-def calculate_average(deltas):
-    return sum(deltas) / len(deltas) if deltas else 0
+def calculate_average(deltas, num_entries):
+    if len(deltas) >= num_entries:
+        return sum(deltas[-num_entries:]) / num_entries
+    else:
+        return sum(deltas) / len(deltas) if deltas else 0
 
 # Initialize variables
 balances = deque(maxlen=8640)  # Store up to 24 hours of data (10s intervals)
-timestamps = deque(maxlen=8640)
 balance_deltas = deque(maxlen=8640)
 sample_interval = 10  # 10 seconds in seconds
 output_file = os.path.expanduser("~/node_balance_morchize/balance_log.txt")
@@ -63,19 +64,14 @@ try:
             
             # Add balance and timestamp to deque
             balances.append(balance)
-            timestamps.append(current_time)
-            
+
             # Write the current balance and timestamp to the log file
             file.write(f"{current_time}: {balance} QUIL\n")
-            
+
             # Calculate and write averages instantly based on available data
-            if len(balance_deltas) > 1:
-                # Calculate averages based on available deltas
-                minute_avg = calculate_average(list(balance_deltas)[-6:])  # Last minute (6 * 10-second intervals)
-                hour_avg = calculate_average(list(balance_deltas)[-360:])  # Last hour (360 * 10-second intervals)
-                day_avg = calculate_average(list(balance_deltas)[-8640:])  # Last day (8640 * 10-second intervals)
-            else:
-                minute_avg = hour_avg = day_avg = 0
+            minute_avg = calculate_average(balance_deltas, 6)  # Last minute (6 * 10-second intervals)
+            hour_avg = calculate_average(balance_deltas, 360)  # Last hour (360 * 10-second intervals)
+            day_avg = calculate_average(balance_deltas, 8640)  # Last day (8640 * 10-second intervals)
 
             # Write the averages to the log
             file.write(f"Average unclaimed balance increase per minute: {minute_avg:.12f} QUIL\n")
